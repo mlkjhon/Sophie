@@ -1,0 +1,28 @@
+# Ambiente Virtual Python
+venv/
+
+# Variáveis de ambiente e chaves secretas
+.env
+
+# Ficheiros temporários de áudio da Sophie
+resposta_sophie.mp3
+*.mp3
+
+# Cache do Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Banco de dados do ChromaDB (memória local)
+memoria/chroma_db/
+*.db
+
+# Arquivos de sistema e IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
