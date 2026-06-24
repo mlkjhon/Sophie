@@ -43,20 +43,13 @@ def listar_proximos_eventos(max_resultados: int = 5):
     except Exception as e:
         return f"❌ Erro ao acessar o Google Calendar: {e}"
 
-def criar_evento_agenda(argumentos: str):
+def criar_evento_agenda(assunto: str, inicio: str, fim: str):
     """
     Cria um compromisso na agenda.
-    Obrigatório passar no formato: Assunto | YYYY-MM-DDTHH:MM:SS | YYYY-MM-DDTHH:MM:SS
-    Exemplo: Reunião | 2026-06-01T21:00:00-03:00 | 2026-06-01T23:00:00-03:00
+    Obrigatório passar no formato ISO, ex: 2026-06-01T21:00:00-03:00
     """
-    print(f"📅 [Calendar] Tentando criar evento: {argumentos}")
+    print(f"📅 [Calendar] Tentando criar evento: {assunto} de {inicio} até {fim}")
     try:
-        partes = [p.strip() for p in argumentos.split('|')]
-        if len(partes) < 3:
-            return "❌ Formato inválido. Use: Assunto | Inicio | Fim"
-            
-        assunto, inicio, fim = partes[0], partes[1], partes[2]
-        
         creds = obter_credenciais()
         servico = build('calendar', 'v3', credentials=creds)
         

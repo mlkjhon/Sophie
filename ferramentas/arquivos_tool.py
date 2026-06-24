@@ -51,20 +51,13 @@ def ler_arquivo(caminho_arquivo: str) -> str:
     except Exception as e:
         return f"❌ Erro ao tentar ler o arquivo: {str(e)}"
 
-def escrever_arquivo(argumentos: str) -> str:
+def escrever_arquivo(caminho: str, conteudo: str) -> str:
     """
     Escreve ou sobrescreve um arquivo de texto.
-    Obrigatório passar no formato: Caminho | Conteudo
-    Exemplo: C:\\Users\\Usuario\\Documents\\nota.txt | Comprar pão e leite
     """
     print(f"✍️ [Escrevendo Arquivo] Processando comando...")
     try:
-        partes = argumentos.split('|', 1)
-        if len(partes) < 2:
-            return "❌ Formato inválido. Use: CaminhoCompleto | Conteudo"
-            
-        caminho = partes[0].strip()
-        conteudo = partes[1].strip()
+        caminho = caminho.strip()
         
         # Cria as pastas pai caso não existam
         diretorio = os.path.dirname(caminho)

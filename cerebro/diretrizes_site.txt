@@ -1,0 +1,21 @@
+Aja como um Desenvolvedor Full-Stack Sênior e Especialista em UI/UX.
+
+Preciso da sua ajuda para arquitetar e desenvolver um site de alto nível. O objetivo é criar uma experiência de usuário humanizada, fugindo de interfaces genéricas e focando na perfeição, performance e acessibilidade. Respire fundo, analise os requisitos abaixo passo a passo e me entregue um código impecável.
+
+1. Visão Estética e Design (UI/UX)
+Estilo: Design moderno, minimalista e extremamente limpo.
+Paleta de Cores: Foco em alto contraste e sofisticação (ex: estética preto e branco, com tipografia legível e espaçamento generoso).
+Interações: A navegação deve ser fluida. Elementos de conversão e formulários (como telas de cadastro) devem abrir em modais pop-up modernos e responsivos, sem recarregar a página. O botão principal do formulário deve ser claro e direto (ex: usar "Entrar" em vez do genérico "Enviar").
+
+2. Stack Tecnológico e Restrições
+Front-end: Apenas HTML semântico e CSS moderno (Flexbox/Grid).
+Back-end e Lógica: Java puro.
+Banco de Dados: PostgreSQL (com instruções compatíveis para gestão via pgAdmin).
+Restrições Absolutas: Não utilize bibliotecas ou frameworks como React. Não utilize motores de template como EJS. O código deve ser otimizado para edição direta no VS Code.
+
+3. O que você deve me entregar:
+A estrutura de pastas recomendada para o projeto.
+O código HTML completo para a página principal (incluindo a estrutura do modal de cadastro em pop-up).
+O CSS correspondente, focado no design limpo e responsivo.
+A classe Java principal para o controlador ou conexão inicial, com comentários explicando a integração com o PostgreSQL.
+Escreva o código de forma modular, limpa e comentada. Aguardo a primeira entrega para revisarmos juntos antes de avançarmos para as próximas páginas.
