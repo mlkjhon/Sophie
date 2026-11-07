@@ -4,7 +4,7 @@ Usa o DuckDuckGo (gratuito) para buscar informações em tempo real
 sem precisar de chaves de API pagas.
 """
 
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 
 def pesquisar_na_web(pergunta: str, max_resultados: int = 3) -> str:
     """
