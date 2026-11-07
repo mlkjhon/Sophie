@@ -1,7 +1,8 @@
 """
-assistente_voz.py — Assistente de voz da Sophie (ElevenLabs + pyttsx3 fallback)
+assistente_voz.py — Assistente de voz da Sophie (Edge TTS + pyttsx3 fallback)
 - STT: Google Speech Recognition (pt-BR + en-US fallback)
-- TTS: ElevenLabs (Rachel) com fallback automático para pyttsx3 offline
+- TTS: Edge TTS (Microsoft) — pt-BR-FranciscaNeural (feminina, natural, expressiva)
+         Fallback automático para pyttsx3 offline
 - API: Railway (https://sophie-production.up.railway.app/chat)
 - YouTube / Spotify: interceptadores de comando diretos
 """
@@ -17,17 +18,17 @@ import urllib.parse
 import threading
 import subprocess
 import tempfile
+import asyncio
+import edge_tts
 import pyttsx3
 
 # Importa o módulo do backend do YouTube
 sys.path.append(os.path.join(os.path.dirname(__file__), 'backend_youtube'))
 from mecanismo_busca import buscar_videos_no_youtube, disparar_abertura_do_video
 
-# ─── Configurações ElevenLabs ───
-ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "sk_732f772737c1e38ebaf5e493d9228e569c3e902cf5b07396")
-ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel - gratuita, feminina, multilíngue
-ELEVENLABS_MODEL = "eleven_multilingual_v2"
-ELEVENLABS_URL = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
+# ─── Configurações Edge TTS ───
+EDGE_TTS_VOICE = "pt-BR-FranciscaNeural"  # Feminina, natural, expressiva (cheerful, friendly, sad, angry, etc.)
+EDGE_TTS_STYLE = "cheerful"                # Estilo: cheerful, friendly, sad, angry, excited, terrified, shouting, whispering
 
 # URL da API (pode ser sobrescrita por variável de ambiente)
 API_URL = os.getenv("SOPHIE_API_URL", "https://sophie-production.up.railway.app/chat")
@@ -41,7 +42,6 @@ def init_pyttsx3():
         tts_engine = pyttsx3.init()
         tts_engine.setProperty('rate', 165)
         tts_engine.setProperty('volume', 1.0)
-        # Pitch não suportado no Windows SAPI5 - remove para evitar warning
         # Seleciona voz feminina PT-BR
         voz_selecionada = None
         for voice in tts_engine.getProperty('voices'):
@@ -95,40 +95,31 @@ class Spinner:
             self.thread.join(timeout=0.5)
 
 
-def falar_elevenlabs(texto: str) -> bool:
-    """Tenta falar via ElevenLabs. Retorna True se sucesso, False se falhar."""
+def falar_edge_tts(texto: str, style: str = None) -> bool:
+    """Fala via Edge TTS (Microsoft). Retorna True se sucesso, False se falhar."""
     try:
-        with Spinner():
-            resp = requests.post(
-                ELEVENLABS_URL,
-                headers={
-                    "xi-api-key": ELEVENLABS_API_KEY,
-                    "Content-Type": "application/json",
-                    "Accept": "audio/mpeg"
-                },
-                json={
-                    "text": texto,
-                    "model_id": ELEVENLABS_MODEL,
-                    "voice_settings": {
-                        "stability": 0.5,
-                        "similarity_boost": 0.75,
-                        "style": 0.2,
-                        "use_speaker_boost": True
-                    }
-                },
-                timeout=30,
-                stream=True
-            )
-        if resp.status_code != 200:
-            print(f"[ElevenLabs] Erro {resp.status_code}: {resp.text}")
-            return False
+        voice = EDGE_TTS_VOICE
+        use_style = style or EDGE_TTS_STYLE
+
+        # Edge TTS 7.x não tem parâmetro style direto - usa SSML com mstts:express-as
+        # Constrói SSML para estilo expressivo
+        ssml = f'''<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="pt-BR">
+    <voice name="{voice}">
+        <mstts:express-as style="{use_style}">
+            {texto}
+        </mstts:express-as>
+    </voice>
+</speak>'''
+
+        communicate = edge_tts.Communicate(ssml, voice)
 
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
             temp_path = f.name
 
+        # Executa async save
+        asyncio.run(communicate.save(temp_path))
+
+        # Toca o áudio
         try:
             if sys.platform == "win32":
                 os.startfile(temp_path)
@@ -137,15 +128,16 @@ def falar_elevenlabs(texto: str) -> bool:
             else:
                 subprocess.run(["aplay", temp_path], check=False)
         except Exception as e:
-            print(f"[ElevenLabs] Erro ao tocar: {e}")
+            print(f"[Edge TTS] Erro ao tocar: {e}")
             return False
         finally:
+            # Remove após tocar (dá tempo)
             threading.Timer(5.0, lambda: os.path.exists(temp_path) and os.unlink(temp_path)).start()
 
         return True
 
     except Exception as e:
-        print(f"[ElevenLabs] Exceção: {e}")
+        print(f"[Edge TTS] Exceção: {e}")
         return False
 
 
@@ -159,22 +151,21 @@ def falar_pyttsx3(texto: str):
         engine.say(texto)
         engine.runAndWait()
     except KeyboardInterrupt:
-        # Permite sair limpo com Ctrl+C
         raise
     except Exception as e:
         print(f"[pyttsx3] Erro: {e}")
 
 
 def falar(texto: str):
-    """Fala com ElevenLabs; se falhar, cai para pyttsx3 automaticamente."""
+    """Fala com Edge TTS (primário); se falhar, cai para pyttsx3."""
     if not texto.strip():
         return
     print(f"Sophie: {texto}")
-    # Tenta ElevenLabs primeiro
-    if falar_elevenlabs(texto):
+    # Tenta Edge TTS primeiro (grátis, sem chave, neural, expressivo)
+    if falar_edge_tts(texto):
         return
     # Fallback silencioso
-    print("[TTS] ElevenLabs falhou, usando pyttsx3 offline...")
+    print("[TTS] Edge TTS falhou, usando pyttsx3 offline...")
     falar_pyttsx3(texto)
 
 
@@ -377,7 +368,7 @@ def handle_spotify(frase: str) -> bool:
 # ─── Loop principal ───
 def main():
     print("=" * 50)
-    print("  ASSISTENTE DE VOZ SOPHIE (ElevenLabs + fallback)")
+    print("  ASSISTENTE DE VOZ SOPHIE (Edge TTS - Francisca)")
     print("=" * 50)
     print("Comandos: 'youtube <termo>', 'spotify <musica>', 'tocar <musica>', 'pausar', 'pular'")
     print("Para sair: Ctrl+C")
