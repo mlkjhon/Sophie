@@ -2,7 +2,7 @@
 assistente_voz.py — Assistente de voz da Sophie (Simplificado)
 - STT: Google Speech Recognition (pt-BR + en-US fallback)
 - TTS: pyttsx3 (offline, rápido) — Voz feminina natural
-- API: FastAPI local (http://localhost:8007/chat)
+- API: Railway (https://sophie-production.up.railway.app/chat)
 - YouTube / Spotify: interceptadores de comando diretos
 """
 
@@ -57,8 +57,8 @@ else:
     print("Aviso: nenhuma voz feminina encontrada, usando padrão do sistema")
 
 # URL da API (pode ser sobrescrita por variável de ambiente)
-# Para usar a API na Vercel: SOPHIE_API_URL=https://seu-projeto.vercel.app/chat
-API_URL = os.getenv("SOPHIE_API_URL", "https://sophie-assistant.vercel.app/chat")
+# Railway: SOPHIE_API_URL=https://sophie-production.up.railway.app/chat
+API_URL = os.getenv("SOPHIE_API_URL", "https://sophie-production.up.railway.app/chat")
 
 
 # ─── Utilitários ───
