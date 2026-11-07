@@ -1,0 +1,20 @@
+# Vercel ignore
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+.env
+.env.local
+*.sqlite3
+dados/memoria_db/
+*.bin
+backend_youtube/
+*.mp3
+*.wav
+assistente_voz.py
+frontend/
+.vercelignore
+.git/
+.gitignore
+README.md

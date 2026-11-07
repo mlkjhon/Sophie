@@ -20,50 +20,50 @@ def simular_tecla_midia(vk_code):
 
 def controlar_spotify(acao: str, busca: str = "") -> str:
     """
-    Controla o aplicativo do Spotify do usuário.
+    Controla o aplicativo do Spotify do usuario.
     'acao' deve ser: 'tocar', 'pausar', 'proxima', 'anterior', 'pesquisar'.
-    'busca' só é usado se acao for 'pesquisar', com o nome da música/artista.
+    'busca' so e usado se acao for 'pesquisar', com o nome da musica/artista.
     """
-    print(f"🎵 [Spotify] Executando ação: {acao} | Busca: {busca}")
-    
+    print(f"[Spotify] Executando acao: {acao} | Busca: {busca}")
+
     acao = acao.lower().strip()
-    
+
     try:
         if acao in ["tocar", "pausar"]:
             simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
-            return "✅ Comando de Tocar/Pausar enviado ao Spotify."
-            
+            return "Comando de Tocar/Pausar enviado ao Spotify."
+
         elif acao == "proxima":
             simular_tecla_midia(VK_MEDIA_NEXT_TRACK)
-            return "✅ Comando de Pular Música enviado ao Spotify."
-            
+            return "Comando de Pular Musica enviado ao Spotify."
+
         elif acao == "anterior":
             simular_tecla_midia(VK_MEDIA_PREV_TRACK)
-            return "✅ Comando de Voltar Música enviado ao Spotify."
-            
+            return "Comando de Voltar Musica enviado ao Spotify."
+
         elif acao == "pesquisar":
             if not busca:
-                return "❌ Erro: Nenhuma música ou artista foi fornecido para a pesquisa."
-                
+                return "Erro: Nenhuma musica ou artista foi fornecido para a pesquisa."
+
             # Codifica a busca para URL (ex: "Linkin Park" vira "Linkin%20Park")
             busca_url = urllib.parse.quote(busca)
-            
+
             # Usa o protocolo nativo do Spotify para abrir a pesquisa no app
             comando = f'start spotify:search:{busca_url}'
             subprocess.run(comando, shell=True)
-            
+
             # Aguarda um segundinho para o app abrir
             time.sleep(2)
-            
+
             # Toca a musica usando a tecla play
-            # OBS: O Spotify não dá play automático na pesquisa nativa, então simulamos um 'enter' e 'play' 
-            # ou deixamos para o usuário clicar. Mas tentar um play pode ajudar.
+            # OBS: O Spotify nao da play automatico na pesquisa nativa, entao simulamos um 'enter' e 'play'
+            # ou deixamos para o usuario clicar. Mas tentar um play pode ajudar.
             simular_tecla_midia(VK_MEDIA_PLAY_PAUSE)
-            
-            return f"✅ Pesquisa por '{busca}' aberta no Spotify."
-            
+
+            return f"Pesquisa por '{busca}' aberta no Spotify."
+
         else:
-            return "❌ Ação desconhecida. Use 'tocar', 'pausar', 'proxima', 'anterior' ou 'pesquisar'."
-            
+            return "Acao desconhecida. Use 'tocar', 'pausar', 'proxima', 'anterior' ou 'pesquisar'."
+
     except Exception as e:
-        return f"❌ Erro ao tentar controlar o Spotify: {e}"
+        return f"Erro ao tentar controlar o Spotify: {e}"

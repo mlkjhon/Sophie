@@ -1,31 +1,21 @@
+"""
+Modelos simplificados: apenas Conversation e Message.
+Sem usuário, sem login, sem preferências — a Sophie é para um usuário só (local).
+"""
+
 from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime
-from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from dados.db import Base
-
-
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=True)
-    email = Column(String, unique=True, index=True, nullable=False)
-    password_hash = Column(String, nullable=False)
-    preferences = Column(JSONB, default=dict)
-
-    conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
 
 
 class Conversation(Base):
     __tablename__ = "conversations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     title = Column(String, default="Nova Conversa")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
-    user = relationship("User", back_populates="conversations")
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
 
 

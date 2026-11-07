@@ -19,15 +19,15 @@ def main():
     # Muda a cor do texto do CMD para verde (A) ou azul claro (B)
     os.system("color 0B")
     print(f"\n=======================================================")
-    print(f"🤖 [SOPHIE] Executando Comando Autônomo")
+    print(f"[SOPHIE] Executando Comando Autonomo")
     print(f"=======================================================")
-    print(f"➜ {comando}\n")
+    print(f"=> {comando}\n")
 
     processo = subprocess.Popen(
-        comando, 
-        shell=True, 
-        stdout=subprocess.PIPE, 
-        stderr=subprocess.STDOUT, 
+        comando,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
         text=True,
         bufsize=1,
         universal_newlines=True
@@ -40,16 +40,16 @@ def main():
 
     processo.wait()
 
-    # Salva a saída para a mente da Sophie ler depois
+    # Salva a saida para a mente da Sophie ler depois
     with open(arquivo_saida, "w", encoding="utf-8") as f:
         # Se for vazio, a gente avisa
         if not saida_completa.strip():
-            f.write("[Comando executado sem saídas no terminal]")
+            f.write("[Comando executado sem saidas no terminal]")
         else:
             f.write(saida_completa)
-        
+
     print(f"\n=======================================================")
-    print(f"✅ Processo finalizado (Código {processo.returncode}). Fechando em 5 segundos...")
+    print(f"Processo finalizado (Codigo {processo.returncode}). Fechando em 5 segundos...")
     print(f"=======================================================")
     time.sleep(5)
 

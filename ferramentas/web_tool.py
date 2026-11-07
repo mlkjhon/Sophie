@@ -17,30 +17,30 @@ def pesquisar_na_web(pergunta: str, max_resultados: int = 3) -> str:
     Returns:
         Um texto contendo os resumos dos sites encontrados.
     """
-    print(f"🌐 [Pesquisando na Web] '{pergunta}'...")
-    
+    print(f"[Pesquisando na Web] '{pergunta}'...")
+
     try:
         # Inicializa o buscador do DuckDuckGo
         buscador = DDGS()
-        
+
         # Faz a pesquisa pedindo textos
         resultados = buscador.text(pergunta, max_results=max_resultados)
-        
+
         if not resultados:
             return "Nenhum resultado encontrado na web."
-            
+
         # Junta os resultados em um único texto para a Sophie ler depois
         texto_final = "Resultados da pesquisa:\n\n"
         for i, res in enumerate(resultados, 1):
-            titulo = res.get('title', 'Sem título')
-            conteudo = res.get('body', 'Sem conteúdo')
+            titulo = res.get('title', 'Sem titulo')
+            conteudo = res.get('body', 'Sem conteudo')
             link = res.get('href', 'Sem link')
             texto_final += f"{i}. {titulo}\n   {conteudo}\n   Fonte: {link}\n\n"
-            
+
         return texto_final
-        
+
     except Exception as e:
-        erro = f"❌ Erro ao pesquisar na internet: {str(e)}"
+        erro = f"Erro ao pesquisar na internet: {str(e)}"
         print(erro)
         return erro
 

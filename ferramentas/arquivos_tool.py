@@ -8,68 +8,68 @@ from PyPDF2 import PdfReader
 
 def ler_arquivo(caminho_arquivo: str) -> str:
     """
-    Lê o conteúdo de um arquivo PDF ou TXT e retorna como texto.
-    
+    Le o conteudo de um arquivo PDF ou TXT e retorna como texto.
+
     Args:
         caminho_arquivo: O caminho completo ou relativo do arquivo.
-        
+
     Returns:
-        O texto extraído do arquivo ou uma mensagem de erro.
+        O texto extraido do arquivo ou uma mensagem de erro.
     """
-    print(f"📄 [Lendo Arquivo] Abrindo '{caminho_arquivo}'...")
-    
+    print(f"[Lendo Arquivo] Abrindo '{caminho_arquivo}'...")
+
     # Verifica se o arquivo realmente existe no computador
     if not os.path.exists(caminho_arquivo):
-        return f"❌ Erro: O arquivo '{caminho_arquivo}' não foi encontrado."
-        
-    # Pega a extensão do arquivo (ex: .pdf, .txt) para saber como ler
+        return f"Erro: O arquivo '{caminho_arquivo}' nao foi encontrado."
+
+    # Pega a extensao do arquivo (ex: .pdf, .txt) para saber como ler
     extensao = caminho_arquivo.lower().split(".")[-1]
-    
+
     try:
         if extensao == "txt":
-            # Abre arquivos de texto normais com codificação UTF-8 (para ler acentos)
+            # Abre arquivos de texto normais com codificacao UTF-8 (para ler acentos)
             with open(caminho_arquivo, "r", encoding="utf-8") as f:
                 conteudo = f.read()
                 return conteudo
-                
+
         elif extensao == "pdf":
-            # Abre o PDF em modo de leitura binária ('rb')
+            # Abre o PDF em modo de leitura binaria ('rb')
             texto_pdf = ""
             leitor = PdfReader(caminho_arquivo)
-            
-            # Passa por todas as páginas do PDF extraindo o texto
+
+            # Passa por todas as paginas do PDF extraindo o texto
             for pagina in leitor.pages:
                 texto_pagina = pagina.extract_text()
                 if texto_pagina:
                     texto_pdf += texto_pagina + "\n"
-                    
+
             return texto_pdf
-            
+
         else:
-            return f"❌ Erro: Formato '{extensao}' ainda não é suportado. Use PDF ou TXT."
-            
+            return f"Erro: Formato '{extensao}' ainda nao e suportado. Use PDF ou TXT."
+
     except Exception as e:
-        return f"❌ Erro ao tentar ler o arquivo: {str(e)}"
+        return f"Erro ao tentar ler o arquivo: {str(e)}"
 
 def escrever_arquivo(caminho: str, conteudo: str) -> str:
     """
     Escreve ou sobrescreve um arquivo de texto.
     """
-    print(f"✍️ [Escrevendo Arquivo] Processando comando...")
+    print(f"[Escrevendo Arquivo] Processando comando...")
     try:
         caminho = caminho.strip()
-        
-        # Cria as pastas pai caso não existam
+
+        # Cria as pastas pai caso nao existam
         diretorio = os.path.dirname(caminho)
         if diretorio and not os.path.exists(diretorio):
             os.makedirs(diretorio)
-            
+
         with open(caminho, "w", encoding="utf-8") as f:
             f.write(conteudo)
-            
-        return f"✅ Arquivo salvo com sucesso em '{caminho}'."
+
+        return f"Arquivo salvo com sucesso em '{caminho}'."
     except Exception as e:
-        return f"❌ Erro ao tentar salvar o arquivo: {str(e)}"
+        return f"Erro ao tentar salvar o arquivo: {str(e)}"
 
 if __name__ == "__main__":
     # Teste de leitura de arquivos

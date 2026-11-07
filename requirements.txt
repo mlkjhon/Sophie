@@ -1,10 +1,10 @@
 python-dotenv
 langchain
 langchain-community
-langchain-ollama
-langchain-google-genai
+langchain-openai
+langchain-postgres
+langchain-huggingface
 chromadb
-langchain-chroma
 duckduckgo-search
 PyPDF2
 google-api-python-client
@@ -12,3 +12,7 @@ google-auth-httplib2
 google-auth-oauthlib
 fastapi
 uvicorn
+pyttsx3
+sentence-transformers
+asyncpg
+psycopg2-binary

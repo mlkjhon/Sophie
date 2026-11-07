@@ -11,48 +11,48 @@ except ImportError:
 
 def listar_proximos_eventos(max_resultados: int = 5):
     """
-    Lista os próximos eventos da sua agenda.
+    Lista os proximos eventos da sua agenda.
     """
-    print("📅 [Calendar] Buscando próximos compromissos...")
+    print("[Calendar] Buscando proximos compromissos...")
     try:
         creds = obter_credenciais()
         servico = build('calendar', 'v3', credentials=creds)
-        
+
         # Pega a data e hora de agora no formato que o Google entende
         agora = datetime.datetime.now(datetime.UTC).isoformat().replace('+00:00', 'Z')
-        
+
         # Busca os eventos
         eventos_resultado = servico.events().list(
             calendarId='primary', timeMin=agora,
             maxResults=max_resultados, singleEvents=True,
             orderBy='startTime'
         ).execute()
-        
+
         eventos = eventos_resultado.get('items', [])
-        
+
         if not eventos:
-            return "Nenhum compromisso marcado para os próximos dias."
-            
-        resumo = "Seus próximos eventos:\n"
+            return "Nenhum compromisso marcado para os proximos dias."
+
+        resumo = "Seus proximos eventos:\n"
         for evento in eventos:
-            # Pega o horário (se tiver) ou a data (se for evento de dia inteiro)
+            # Pega o horario (se tiver) ou a data (se for evento de dia inteiro)
             inicio = evento['start'].get('dateTime', evento['start'].get('date'))
             resumo += f"- {inicio}: {evento['summary']}\n"
-            
+
         return resumo
     except Exception as e:
-        return f"❌ Erro ao acessar o Google Calendar: {e}"
+        return f"Erro ao acessar o Google Calendar: {e}"
 
 def criar_evento_agenda(assunto: str, inicio: str, fim: str):
     """
     Cria um compromisso na agenda.
-    Obrigatório passar no formato ISO, ex: 2026-06-01T21:00:00-03:00
+    Obrigatorio passar no formato ISO, ex: 2026-06-01T21:00:00-03:00
     """
-    print(f"📅 [Calendar] Tentando criar evento: {assunto} de {inicio} até {fim}")
+    print(f"[Calendar] Tentando criar evento: {assunto} de {inicio} ate {fim}")
     try:
         creds = obter_credenciais()
         servico = build('calendar', 'v3', credentials=creds)
-        
+
         evento = {
           'summary': assunto,
           'start': {
@@ -66,9 +66,9 @@ def criar_evento_agenda(assunto: str, inicio: str, fim: str):
         }
 
         evento_criado = servico.events().insert(calendarId='primary', body=evento).execute()
-        return f"✅ Evento criado com sucesso! Link: {evento_criado.get('htmlLink')}"
+        return f"Evento criado com sucesso! Link: {evento_criado.get('htmlLink')}"
     except Exception as e:
-        return f"❌ Erro ao criar evento no Google Calendar: {e}"
+        return f"Erro ao criar evento no Google Calendar: {e}"
 
 if __name__ == "__main__":
     print("="*40)

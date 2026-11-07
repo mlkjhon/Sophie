@@ -1,6 +1,6 @@
 """
 main.py — Ponto de entrada do Sophie.
-Nesta primeira etapa, apenas verificamos se o ambiente está configurado corretamente
+Nesta etapa, apenas verificamos se o ambiente está configurado corretamente
 carregando as variáveis de ambiente.
 """
 
@@ -14,12 +14,10 @@ def testar_ambiente():
     """
     Verifica se o ambiente básico foi carregado e dá um oi.
     """
-    modelo = os.getenv("OLLAMA_MODEL", "Não definido")
-    
     print("=" * 40)
-    print("🤖 Olá! Eu sou a Sophie.")
-    print("✅ Ambiente configurado com sucesso!")
-    print(f"🧠 Modelo local configurado para: {modelo}")
+    print("Ola! Eu sou a Sophie.")
+    print("Ambiente configurado com sucesso!")
+    print("Modelo: NVIDIA Nemotron 3 Ultra (API)")
     print("=" * 40)
 
 if __name__ == "__main__":

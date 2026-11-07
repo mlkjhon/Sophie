@@ -1,92 +1,103 @@
 """
-modelo.py — Gerencia a conexão com os modelos de Inteligência Artificial.
-Tenta usar o Ollama (local) por padrão. Se falhar, usa o Gemini (nuvem) como plano B.
-Suporta "streaming" para que a resposta apareça palavra por palavra.
+modelo.py — Gerencia a conexão com os modelos de Inteligência Artificial (NVIDIA).
+- Chat: Nemotron 3 Ultra (nvidia/nemotron-3-ultra-550b-a55b) via API NVIDIA
+- Embeddings: sentence-transformers local (all-MiniLM-L6-v2) - offline, rápido, confiável
 """
 
 import os
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_openai import ChatOpenAI
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_core.messages import HumanMessage
 
 # Carrega as variáveis do arquivo .env
 load_dotenv()
 
-def obter_modelo():
-    """
-    Tenta inicializar o modelo local (Ollama). 
-    Se o Ollama não estiver rodando ou der erro, usa o Gemini.
-    
-    Returns:
-        O modelo de IA pronto para ser usado.
-    """
-    nome_modelo_local = os.getenv("OLLAMA_MODEL", "llama3.1")
-    chave_gemini = os.getenv("GEMINI_API_KEY")
+# ─── Configuração NVIDIA (Chat) ───
+NVIDIA_API_KEY = os.getenv("NVIDIA_API_KEY")
+NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
+CHAT_MODEL = os.getenv("CHAT_MODEL", "nvidia/nemotron-3-ultra-550b-a55b")
 
-    try:
-        # Tentamos criar o modelo local com o Ollama
-        print(f"🔄 Tentando conectar ao modelo local ({nome_modelo_local})...")
-        modelo_local = ChatOllama(model=nome_modelo_local)
-        
-        # Fazemos um teste rápido "invisível" para ver se o Ollama está ligado
-        # Se ele não estiver ligado, isso vai dar erro e pular para o "except"
-        modelo_local.invoke([HumanMessage(content="oi")])
-        
-        print("✅ Conectado ao Ollama (Local)!")
-        return modelo_local
-        
-    except Exception as e:
-        print("⚠️ Falha ao conectar no Ollama. O programa está aberto?")
-        print("🔄 Mudando para o Gemini (Nuvem) como plano B...")
-        
-        # Verifica se o usuário colocou a chave do Gemini no .env
-        if not chave_gemini or chave_gemini == "sua_chave_aqui_se_for_usar_gemini":
-            raise ValueError("❌ Erro: Chave do Gemini não configurada no .env e o Ollama falhou!")
-            
-        # Retorna o Gemini como fallback
-        modelo_gemini = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash", # Um modelo rápido e atualizado
-            google_api_key=chave_gemini
+# ─── Configuração Embeddings (Local) ───
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+
+_chat_model = None
+_embedding_model = None
+
+
+def _get_chat_model() -> ChatOpenAI:
+    """Singleton: cria o modelo de chat uma única vez (lazy)."""
+    global _chat_model
+    if _chat_model is None:
+        print(f"Inicializando NVIDIA Chat ({CHAT_MODEL})....")
+        _chat_model = ChatOpenAI(
+            model=CHAT_MODEL,
+            api_key=NVIDIA_API_KEY,
+            base_url=NVIDIA_BASE_URL,
+            temperature=0.7,
+            max_tokens=4096,
+            streaming=True,
         )
-        print("✅ Conectado ao Gemini (Nuvem)!")
-        return modelo_gemini
+        # Teste silencioso
+        try:
+            _chat_model.invoke([HumanMessage(content="oi")])
+            print("NVIDIA Chat pronto!")
+        except Exception as e:
+            print(f"Chat: {e}")
+    return _chat_model
 
-def conversar(modelo, texto_pergunta):
+
+def _get_embedding_model() -> HuggingFaceEmbeddings:
+    """Singleton: cria o modelo de embeddings local uma única vez (lazy)."""
+    global _embedding_model
+    if _embedding_model is None:
+        print(f"Inicializando Embeddings local ({EMBEDDING_MODEL})...")
+        _embedding_model = HuggingFaceEmbeddings(
+            model_name=EMBEDDING_MODEL,
+            model_kwargs={'device': 'cpu'},
+            encode_kwargs={'normalize_embeddings': True}
+        )
+        print("Embeddings local pronto!")
+    return _embedding_model
+
+
+# ─── API Pública ───
+def obter_modelo() -> ChatOpenAI:
+    """Retorna o modelo de chat (Nemotron 3 Ultra)."""
+    return _get_chat_model()
+
+
+def obter_embeddings() -> HuggingFaceEmbeddings:
+    """Retorna o modelo de embeddings local para memória vetorial."""
+    return _get_embedding_model()
+
+
+def conversar(modelo: ChatOpenAI, texto_pergunta: str) -> str:
     """
-    Envia uma pergunta para o modelo e imprime a resposta palavra por palavra (streaming).
-    
-    Args:
-        modelo: O modelo de IA inicializado retornado pelo obter_modelo()
-        texto_pergunta: A pergunta que você quer fazer em texto
+    Envia uma pergunta e retorna a resposta completa (não faz print).
+    Útil para testes e uso programático.
     """
-    print(f"\n🗣️ Você: {texto_pergunta}")
-    print("🤖 Sophie: ", end="", flush=True)
-    
-    try:
-        # Prepara a mensagem no formato que o LangChain entende
-        mensagem = [HumanMessage(content=texto_pergunta)]
-        
-        # O método .stream() retorna pedaços da resposta assim que são gerados
-        for pedaco in modelo.stream(mensagem):
-            print(pedaco.content, end="", flush=True)
-            
-        print("\n") # Pula uma linha no final para ficar organizado
-    except Exception as e:
-        print(f"\n❌ Ocorreu um erro ao gerar a resposta: {str(e)}")
+    mensagem = [HumanMessage(content=texto_pergunta)]
+    resposta = modelo.invoke(mensagem)
+    return resposta.content
+
 
 if __name__ == "__main__":
-    # Bloco de Teste: Só é executado se você rodar este arquivo diretamente
-    print("=" * 40)
-    print("Testando o Cérebro da Sophie")
-    print("=" * 40)
-    
+    print("=" * 50)
+    print("Teste NVIDIA Nemotron + Embeddings Local")
+    print("=" * 50)
+
     try:
-        # 1. Carregamos o modelo
-        meu_modelo = obter_modelo()
-        
-        # 2. Fazemos uma pergunta para testar o streaming
-        conversar(meu_modelo, "Me explique o que é um buraco negro em apenas uma frase simples.")
-        
+        chat = obter_modelo()
+        resp = conversar(chat, "Ola! Responda em uma frase: o que e um buraco negro?")
+        print(f"\nResposta: {resp}")
+
+        print("\n--- Testando Embeddings ---")
+        emb = obter_embeddings()
+        vetor = emb.embed_query("teste de embedding")
+        print(f"Embedding gerado: {len(vetor)} dimensoes")
+
     except Exception as erro:
-        print(f"\n{erro}")
+        print(f"\nErro: {erro}")
+        import traceback
+        traceback.print_exc()

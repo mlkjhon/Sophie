@@ -30,8 +30,8 @@ def obter_credenciais():
         else:
             if not os.path.exists(caminho_credenciais):
                 raise FileNotFoundError(
-                    "\n❌ ARQUIVO 'credentials.json' NÃO ENCONTRADO!\n"
-                    "Você precisa baixar o arquivo do Google Cloud e colocá-lo "
+                    "\nARQUIVO 'credentials.json' NAO ENCONTRADO!\n"
+                    "Voce precisa baixar o arquivo do Google Cloud e coloca-lo "
                     "na mesma pasta do main.py com o nome 'credentials.json'."
                 )
             

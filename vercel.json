@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api.py"
+    }
+  ],
+  "env": {
+    "PYTHONPATH": ".",
+    "NVIDIA_API_KEY": "@nvidia_api_key",
+    "POSTGRES_URL": "@postgres_url"
+  },
+  "functions": {
+    "api.py": {
+      "maxDuration": 60
+    }
+  }
+}
