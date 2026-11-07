@@ -1,7 +1,7 @@
 """
-assistente_voz.py — Assistente de voz da Sophie (Simplificado)
+assistente_voz.py — Assistente de voz da Sophie (ElevenLabs + pyttsx3 fallback)
 - STT: Google Speech Recognition (pt-BR + en-US fallback)
-- TTS: pyttsx3 (offline, rápido) — Voz feminina natural
+- TTS: ElevenLabs (Rachel) com fallback automático para pyttsx3 offline
 - API: Railway (https://sophie-production.up.railway.app/chat)
 - YouTube / Spotify: interceptadores de comando diretos
 """
@@ -12,58 +12,62 @@ import os
 import time
 import sys
 import re
-import pyttsx3
 import webbrowser
 import urllib.parse
+import threading
+import subprocess
+import tempfile
+import pyttsx3
 
 # Importa o módulo do backend do YouTube
 sys.path.append(os.path.join(os.path.dirname(__file__), 'backend_youtube'))
 from mecanismo_busca import buscar_videos_no_youtube, disparar_abertura_do_video
 
-# ─── TTS Offline (pyttsx3) — Configuração voz feminina natural ───
-tts_engine = pyttsx3.init()
-tts_engine.setProperty('rate', 165)     # Velocidade natural (nem rápida nem lenta)
-tts_engine.setProperty('volume', 1.0)
-tts_engine.setProperty('pitch', 110)    # Tom levemente mais agudo (feminino)
-
-# Seleciona a melhor voz feminina em português disponível
-voz_selecionada = None
-for voice in tts_engine.getProperty('voices'):
-    nome = voice.name.lower()
-    # Prioridade: vozes femininas PT-BR/Portuguese
-    if any(k in nome for k in ('maria', 'helena', 'camila', 'isabela', 'fernanda', 'patricia', 'lucia', 'ana')):
-        if any(k in nome for k in ('portuguese', 'brazil', 'pt-br', 'pt_br', 'brasil')):
-            voz_selecionada = voice.id
-            break
-
-# Fallback: qualquer voz PT-BR
-if voz_selecionada is None:
-    for voice in tts_engine.getProperty('voices'):
-        if any(k in voice.name.lower() for k in ('portuguese', 'brazil', 'pt-br', 'pt_br', 'brasil')):
-            voz_selecionada = voice.id
-            break
-
-# Fallback final: primeira voz feminina do sistema
-if voz_selecionada is None:
-    for voice in tts_engine.getProperty('voices'):
-        if any(k in voice.name.lower() for k in ('female', 'woman', 'girl', 'feminina', 'mulher')):
-            voz_selecionada = voice.id
-            break
-
-if voz_selecionada:
-    tts_engine.setProperty('voice', voz_selecionada)
-    print(f"Voz selecionada: {voz_selecionada}")
-else:
-    print("Aviso: nenhuma voz feminina encontrada, usando padrão do sistema")
+# ─── Configurações ElevenLabs ───
+ELEVENLABS_API_KEY = os.getenv("ELEVENLABS_API_KEY", "sk_732f772737c1e38ebaf5e493d9228e569c3e902cf5b07396")
+ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM"  # Rachel - gratuita, feminina, multilíngue
+ELEVENLABS_MODEL = "eleven_multilingual_v2"
+ELEVENLABS_URL = f"https://api.elevenlabs.io/v1/text-to-speech/{ELEVENLABS_VOICE_ID}"
 
 # URL da API (pode ser sobrescrita por variável de ambiente)
-# Railway: SOPHIE_API_URL=https://sophie-production.up.railway.app/chat
 API_URL = os.getenv("SOPHIE_API_URL", "https://sophie-production.up.railway.app/chat")
+
+
+# ─── pyttsx3 Fallback (offline) ───
+tts_engine = None
+def init_pyttsx3():
+    global tts_engine
+    if tts_engine is None:
+        tts_engine = pyttsx3.init()
+        tts_engine.setProperty('rate', 165)
+        tts_engine.setProperty('volume', 1.0)
+        # Pitch não suportado no Windows SAPI5 - remove para evitar warning
+        # Seleciona voz feminina PT-BR
+        voz_selecionada = None
+        for voice in tts_engine.getProperty('voices'):
+            nome = voice.name.lower()
+            if any(k in nome for k in ('maria', 'helena', 'camila', 'isabela', 'fernanda', 'patricia', 'lucia', 'ana')):
+                if any(k in nome for k in ('portuguese', 'brazil', 'pt-br', 'pt_br', 'brasil')):
+                    voz_selecionada = voice.id
+                    break
+        if voz_selecionada is None:
+            for voice in tts_engine.getProperty('voices'):
+                if any(k in voice.name.lower() for k in ('portuguese', 'brazil', 'pt-br', 'pt_br', 'brasil')):
+                    voz_selecionada = voice.id
+                    break
+        if voz_selecionada is None:
+            for voice in tts_engine.getProperty('voices'):
+                if any(k in voice.name.lower() for k in ('female', 'woman', 'girl', 'feminina', 'mulher')):
+                    voz_selecionada = voice.id
+                    break
+        if voz_selecionada:
+            tts_engine.setProperty('voice', voz_selecionada)
+            print(f"[pyttsx3] Voz: {voz_selecionada}")
+    return tts_engine
 
 
 # ─── Utilitários ───
 class Spinner:
-    """Spinner simples no terminal."""
     def __init__(self):
         self.chars = ['|', '/', '-', '\\']
         self.running = False
@@ -80,7 +84,6 @@ class Spinner:
         sys.stdout.flush()
 
     def __enter__(self):
-        import threading
         self.running = True
         self.thread = threading.Thread(target=self._spin, daemon=True)
         self.thread.start()
@@ -92,27 +95,97 @@ class Spinner:
             self.thread.join(timeout=0.5)
 
 
+def falar_elevenlabs(texto: str) -> bool:
+    """Tenta falar via ElevenLabs. Retorna True se sucesso, False se falhar."""
+    try:
+        with Spinner():
+            resp = requests.post(
+                ELEVENLABS_URL,
+                headers={
+                    "xi-api-key": ELEVENLABS_API_KEY,
+                    "Content-Type": "application/json",
+                    "Accept": "audio/mpeg"
+                },
+                json={
+                    "text": texto,
+                    "model_id": ELEVENLABS_MODEL,
+                    "voice_settings": {
+                        "stability": 0.5,
+                        "similarity_boost": 0.75,
+                        "style": 0.2,
+                        "use_speaker_boost": True
+                    }
+                },
+                timeout=30,
+                stream=True
+            )
+        if resp.status_code != 200:
+            print(f"[ElevenLabs] Erro {resp.status_code}: {resp.text}")
+            return False
+
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+            temp_path = f.name
+
+        try:
+            if sys.platform == "win32":
+                os.startfile(temp_path)
+            elif sys.platform == "darwin":
+                subprocess.run(["afplay", temp_path], check=False)
+            else:
+                subprocess.run(["aplay", temp_path], check=False)
+        except Exception as e:
+            print(f"[ElevenLabs] Erro ao tocar: {e}")
+            return False
+        finally:
+            threading.Timer(5.0, lambda: os.path.exists(temp_path) and os.unlink(temp_path)).start()
+
+        return True
+
+    except Exception as e:
+        print(f"[ElevenLabs] Exceção: {e}")
+        return False
+
+
+def falar_pyttsx3(texto: str):
+    """Fala via pyttsx3 (offline, sempre funciona)."""
+    try:
+        engine = init_pyttsx3()
+        print(f"Sophie: {texto}")
+        if not texto.strip():
+            return
+        engine.say(texto)
+        engine.runAndWait()
+    except KeyboardInterrupt:
+        # Permite sair limpo com Ctrl+C
+        raise
+    except Exception as e:
+        print(f"[pyttsx3] Erro: {e}")
+
+
 def falar(texto: str):
-    """Fala o texto usando pyttsx3 (blocking)."""
-    print(f"Sophie: {texto}")
+    """Fala com ElevenLabs; se falhar, cai para pyttsx3 automaticamente."""
     if not texto.strip():
         return
-    try:
-        tts_engine.say(texto)
-        tts_engine.runAndWait()
-    except Exception as e:
-        print(f"Erro TTS: {e}")
+    print(f"Sophie: {texto}")
+    # Tenta ElevenLabs primeiro
+    if falar_elevenlabs(texto):
+        return
+    # Fallback silencioso
+    print("[TTS] ElevenLabs falhou, usando pyttsx3 offline...")
+    falar_pyttsx3(texto)
 
 
 def escutar_microfone() -> str | None:
     """Ouve o microfone e retorna o texto reconhecido (ou None)."""
     r = sr.Recognizer()
 
-    # Configurações mais sensíveis para captar voz baixa
-    r.energy_threshold = 200          # Mais sensível (padrão 300)
-    r.dynamic_energy_threshold = True  # Auto-ajusta ruído ambiente
-    r.pause_threshold = 1.0            # Pausa menor = resposta mais rápida
-    r.phrase_threshold = 0.3           # Minimo de audio para considerar frase
+    r.energy_threshold = 200
+    r.dynamic_energy_threshold = True
+    r.pause_threshold = 1.0
+    r.phrase_threshold = 0.3
 
     with sr.Microphone() as source:
         print("\nAjustando ruido ambiente...")
@@ -123,14 +196,11 @@ def escutar_microfone() -> str | None:
             audio = r.listen(source, timeout=8, phrase_time_limit=20)
 
             with Spinner():
-                # Tenta pt-BR primeiro, depois en-US para frases em ingles
                 try:
                     texto = r.recognize_google(audio, language='pt-BR').lower().strip()
                 except sr.UnknownValueError:
-                    # Fallback para ingles
                     texto = r.recognize_google(audio, language='en-US').lower().strip()
 
-            # Correcoes foneticas comuns (PT-BR)
             correcoes = {
                 "valente": "valorant", "valera": "valorant",
                 "chati g p t": "chatgpt", "chat e g p t": "chatgpt",
@@ -171,7 +241,7 @@ def escutar_microfone() -> str | None:
 
 
 def chamar_api(texto: str) -> str:
-    """Envia texto para a API local e retorna a resposta."""
+    """Envia texto para a API e retorna a resposta."""
     try:
         with Spinner():
             resp = requests.post(API_URL, json={"texto": texto}, timeout=120)
@@ -179,21 +249,19 @@ def chamar_api(texto: str) -> str:
             return resp.json().get("resposta", "Erro: resposta vazia")
         return f"Erro API ({resp.status_code}): {resp.text}"
     except requests.exceptions.ConnectionError:
-        return "Nao consegui conectar na API. O servidor esta rodando? (uvicorn api:app)"
+        return "Nao consegui conectar na API. Verifique se o Railway esta online."
     except Exception as e:
         return f"Erro ao chamar API: {e}"
 
 
 # ─── Interceptadores de comando direto ───
 def handle_youtube(frase: str) -> bool:
-    """Se frase for comando YouTube, executa e retorna True."""
     gatilhos = ['youtube', 'pesquisar vídeo', 'buscar vídeo', 'procura vídeo', 'abre youtube']
     if not any(g in frase for g in gatilhos):
         return False
 
     falar("Acessando o YouTube...")
 
-    # Extrai termo de busca
     termo = frase
     for p in [r'\byoutube\b', r'\bpesquisar\b', r'\bbuscar\b', r'\bprocurar\b',
               r'\bvídeos?\b', r'\bsobre\b', r'\bpor\b', r'\bno\b', r'\bum\b',
@@ -220,13 +288,12 @@ def handle_youtube(frase: str) -> bool:
 
 
 def handle_spotify(frase: str) -> bool:
-    """Se frase for comando Spotify, executa e retorna True."""
     import pyautogui
 
     gatilhos_acao = ['abra', 'abre', 'abrir', 'tocar', 'toque', 'ouvir',
                      'coloca', 'colocar', 'pesquisar', 'buscar', 'procura']
     gatilhos_media = ['toca ', 'toque ', 'tocar ', 'quero ouvir ', 'queria ouvir ',
-                      'coloca ', 'pula ', 'pular ', 'próxima', 'passa', 'pausar', 'pause ', 'pare ']
+                      'coloca ', 'pula ', 'pular ', 'próxima', 'proxima', 'passa', 'pausar', 'pause ', 'pare ']
 
     eh_spotify = ('spotify' in frase and any(g in frase for g in gatilhos_acao)) or \
                  any(g in frase for g in gatilhos_media) or \
@@ -235,7 +302,6 @@ def handle_spotify(frase: str) -> bool:
     if not eh_spotify:
         return False
 
-    # Controles de mídia diretos
     if any(p in frase for p in ['pause', 'pausar', 'pare', 'parar', 'pausa']):
         falar("Pausando.")
         pyautogui.press('playpause')
@@ -245,7 +311,6 @@ def handle_spotify(frase: str) -> bool:
         pyautogui.press('nexttrack')
         return True
 
-    # Busca/tocar música
     falar("Conectando ao Spotify...")
 
     termo = frase
@@ -267,9 +332,8 @@ def handle_spotify(frase: str) -> bool:
             webbrowser.open("https://open.spotify.com")
         return True
 
-    # Busca no DuckDuckGo por track do Spotify
     try:
-        from ddgs import DDGS
+        from duckduckgo_search import DDGS
 
         def ddgs_safe(q, n=5):
             try:
@@ -279,7 +343,6 @@ def handle_spotify(frase: str) -> bool:
 
         query = urllib.parse.quote(termo)
 
-        # Busca direta por track
         with Spinner():
             results = ddgs_safe(f'"{termo}" spotify track', 8)
         tracks = [r for r in results if 'open.spotify.com/track' in r.get('href', '')]
@@ -290,7 +353,6 @@ def handle_spotify(frase: str) -> bool:
             tracks = [r for r in results if 'open.spotify.com/track' in r.get('href', '')]
 
         if tracks:
-            # Pega a primeira track válida
             for t in tracks:
                 href = t.get('href', '')
                 if '/track/' in href:
@@ -302,7 +364,6 @@ def handle_spotify(frase: str) -> bool:
                     pyautogui.press('enter')
                     return True
 
-        # Fallback: abre busca no Spotify
         falar("Não achei a música exata. Abrindo busca no Spotify.")
         os.startfile(f"spotify:search:{query}")
 
@@ -316,7 +377,7 @@ def handle_spotify(frase: str) -> bool:
 # ─── Loop principal ───
 def main():
     print("=" * 50)
-    print("  ASSISTENTE DE VOZ SOPHIE")
+    print("  ASSISTENTE DE VOZ SOPHIE (ElevenLabs + fallback)")
     print("=" * 50)
     print("Comandos: 'youtube <termo>', 'spotify <musica>', 'tocar <musica>', 'pausar', 'pular'")
     print("Para sair: Ctrl+C")
