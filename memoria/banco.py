@@ -2,35 +2,20 @@
 banco.py — Gerencia a memória de longo prazo da Sophie.
 Salva conversas e informações no Supabase pgvector,
 permitindo que a Sophie lembre de você entre diferentes sessões.
-Usa embeddings locais (sentence-transformers/all-MiniLM-L6-v2).
+Usa embeddings NVIDIA (nvidia/nv-embedqa-e5-v5) via API.
 """
 
 import os
 from datetime import datetime
 from langchain_postgres import PGVector
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from dados.db import POSTGRES_URL
+from cerebro.modelo import obter_embeddings
 
 # Configuração do PGVector
 COLLECTION_NAME = "memorias_sophie"
-EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 
-_embedding_model = None
 _vector_store = None
-
-
-def _get_embedding_model() -> HuggingFaceEmbeddings:
-    """Singleton: cria o modelo de embeddings local uma única vez (lazy)."""
-    global _embedding_model
-    if _embedding_model is None:
-        print(f"Inicializando Embeddings local ({EMBEDDING_MODEL})...")
-        _embedding_model = HuggingFaceEmbeddings(
-            model_name=EMBEDDING_MODEL,
-            model_kwargs={'device': 'cpu'},
-            encode_kwargs={'normalize_embeddings': True}
-        )
-        print("Embeddings local pronto!")
-    return _embedding_model
 
 
 def _get_vector_store() -> PGVector:
@@ -39,7 +24,7 @@ def _get_vector_store() -> PGVector:
     if _vector_store is None:
         print("Conectando ao Supabase pgvector...")
         _vector_store = PGVector(
-            embeddings=_get_embedding_model(),
+            embeddings=obter_embeddings(),
             collection_name=COLLECTION_NAME,
             connection=POSTGRES_URL,
             use_jsonb=True,

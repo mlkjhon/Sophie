@@ -11,15 +11,5 @@
       "src": "/(.*)",
       "dest": "api.py"
     }
-  ],
-  "env": {
-    "PYTHONPATH": ".",
-    "NVIDIA_API_KEY": "@nvidia_api_key",
-    "POSTGRES_URL": "@postgres_url"
-  },
-  "functions": {
-    "api.py": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }

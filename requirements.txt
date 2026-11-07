@@ -3,7 +3,6 @@ langchain
 langchain-community
 langchain-openai
 langchain-postgres
-langchain-huggingface
 chromadb
 duckduckgo-search
 PyPDF2
@@ -13,6 +12,4 @@ google-auth-oauthlib
 fastapi
 uvicorn
 pyttsx3
-sentence-transformers
 asyncpg
-psycopg2-binary
